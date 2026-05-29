@@ -49,9 +49,17 @@ export async function getDb() {
         resumeUrl TEXT NOT NULL,
         coverLetter TEXT,
         status VARCHAR(50) DEFAULT 'pending',
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(jobId, email)
       );
     `);
+
+    // Ensure unique constraint exists for existing deployments
+    try {
+      await client.query('ALTER TABLE applications ADD CONSTRAINT unique_job_email UNIQUE (jobId, email)');
+    } catch (err) {
+      // Constraint might already exist
+    }
 
     // Seed initial jobs if database is empty
     const countRes = await client.query('SELECT COUNT(*) FROM jobs');

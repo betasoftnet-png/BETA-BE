@@ -2,16 +2,47 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { Resend } from 'resend';
 import { getDb } from './db.js';
 
 dotenv.config();
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
+
+// Setup uploads folder
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Multer Storage config
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+  }
+});
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
+
+// Serve uploads folder statically
+app.use('/uploads', express.static(uploadDir));
 
 // Initialize Resend
 const resendApiKey = process.env.RESEND_API_KEY;
@@ -86,12 +117,17 @@ app.post('/api/jobs', async (req, res) => {
   }
 });
 
-// POST /api/jobs/apply - Submit an application and send email via Resend
-app.post('/api/jobs/apply', async (req, res) => {
+// POST /api/jobs/apply - Submit an application with file upload and send email via Resend
+app.post('/api/jobs/apply', upload.single('resume'), async (req, res) => {
   try {
-    const { jobId, fullName, email, resumeUrl, coverLetter } = req.body;
+    const { jobId, fullName, email, coverLetter } = req.body;
 
-    if (!jobId || !fullName || !email || !resumeUrl) {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Missing required resume file.' });
+    }
+
+    if (!jobId || !fullName || !email) {
+      fs.unlinkSync(req.file.path);
       return res.status(400).json({ success: false, message: 'Missing required application parameters.' });
     }
 
@@ -100,11 +136,21 @@ app.post('/api/jobs/apply', async (req, res) => {
     // Check if the job exists
     const jobCheck = await pool.query('SELECT * FROM jobs WHERE id = $1', [jobId]);
     if (jobCheck.rows.length === 0) {
+      fs.unlinkSync(req.file.path);
       return res.status(404).json({ success: false, message: 'Target job opening not found.' });
     }
     const job = jobCheck.rows[0];
 
+    // Check for duplicate application (One candidate can apply for one job only one time)
+    const dupCheck = await pool.query('SELECT * FROM applications WHERE jobId = $1 AND email = $2', [jobId, email]);
+    if (dupCheck.rows.length > 0) {
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({ success: false, message: 'You have already applied for this job.' });
+    }
+
     const id = `app-${crypto.randomUUID().slice(0, 8)}`;
+    const resumeUrl = `/uploads/${req.file.filename}`;
+    const absoluteResumeUrl = `${req.protocol}://${req.get('host')}${resumeUrl}`;
     
     // Insert into database
     await pool.query(
@@ -145,7 +191,7 @@ app.post('/api/jobs/apply', async (req, res) => {
             </tr>
             <tr>
               <td style="padding: 4px 0; font-weight: bold;">Resume Link:</td>
-              <td style="padding: 4px 0;"><a href="${resumeUrl}" target="_blank" style="color: #4f46e5; text-decoration: none;">View Resume</a></td>
+              <td style="padding: 4px 0;"><a href="${absoluteResumeUrl}" target="_blank" style="color: #4f46e5; text-decoration: none;">View Resume</a></td>
             </tr>
           </table>
         </div>
@@ -167,7 +213,7 @@ app.post('/api/jobs/apply', async (req, res) => {
     if (resend) {
       try {
         const { data, error } = await resend.emails.send({
-          from: 'Beta Softnet Careers <onboarding@resend.dev>',
+          from: 'Beta Softnet Careers <admin@beta-softnet.com>',
           to: [email],
           subject: emailSubject,
           html: emailHtml
