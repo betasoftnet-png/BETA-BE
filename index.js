@@ -16,7 +16,27 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'https://beta-softnet.com',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'http://localhost:5004'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
+
 app.use(express.json());
 
 // Setup uploads folder
@@ -280,6 +300,75 @@ app.get('/api/applications', async (req, res) => {
   } catch (error) {
     console.error('Error fetching applications:', error);
     res.status(500).json({ success: false, message: 'Failed to retrieve applications.' });
+  }
+});
+
+// PUT /api/jobs/:id - Edit an existing job posting
+app.put('/api/jobs/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, department, location, type, salary, description, responsibilities, requirements, skills } = req.body;
+
+    if (!title || !department || !location || !type || !salary || !description) {
+      return res.status(400).json({ success: false, message: 'Missing required job posting parameters.' });
+    }
+
+    const pool = await getDb();
+    
+    // Stringify arrays for storage
+    const respStr = JSON.stringify(Array.isArray(responsibilities) ? responsibilities : []);
+    const reqsStr = JSON.stringify(Array.isArray(requirements) ? requirements : []);
+    const skillsStr = JSON.stringify(Array.isArray(skills) ? skills : []);
+
+    const result = await pool.query(
+      `UPDATE jobs 
+       SET title = $1, department = $2, location = $3, type = $4, salary = $5, description = $6, responsibilities = $7, requirements = $8, skills = $9
+       WHERE id = $10`,
+      [title, department, location, type, salary, description, respStr, reqsStr, skillsStr, id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: 'Job posting not found.' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Job posting updated successfully.',
+      data: {
+        id,
+        title,
+        department,
+        location,
+        type,
+        salary,
+        description,
+        responsibilities: Array.isArray(responsibilities) ? responsibilities : [],
+        requirements: Array.isArray(requirements) ? requirements : [],
+        skills: Array.isArray(skills) ? skills : []
+      }
+    });
+  } catch (error) {
+    console.error('Error updating job:', error);
+    res.status(500).json({ success: false, message: 'Failed to update job posting.' });
+  }
+});
+
+// DELETE /api/jobs/:id - Delete a job posting (cascades to applications)
+app.delete('/api/jobs/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pool = await getDb();
+    
+    const result = await pool.query('DELETE FROM jobs WHERE id = $1', [id]);
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: 'Job posting not found.' });
+    }
+    
+    res.json({ success: true, message: 'Job posting and associated applications deleted successfully.' });
+  } catch (error) {
+    console.error('Error deleting job:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete job posting.' });
   }
 });
 
