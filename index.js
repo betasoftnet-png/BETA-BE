@@ -60,11 +60,12 @@ app.get('/api/jobs', async (req, res) => {
     const pool = await getDb();
     const result = await pool.query('SELECT * FROM jobs ORDER BY createdAt DESC');
     
-    // Parse responsibilities and requirements back into arrays
+    // Parse responsibilities, requirements, and skills back into arrays
     const jobs = result.rows.map(row => ({
       ...row,
       responsibilities: JSON.parse(row.responsibilities || '[]'),
-      requirements: JSON.parse(row.requirements || '[]')
+      requirements: JSON.parse(row.requirements || '[]'),
+      skills: JSON.parse(row.skills || '[]')
     }));
     
     res.json({ success: true, data: jobs });
@@ -77,11 +78,11 @@ app.get('/api/jobs', async (req, res) => {
 // POST /api/jobs - Create a new job listing
 app.post('/api/jobs', async (req, res) => {
   try {
-    const { title, department, location, type, salary, description, responsibilities, requirements } = req.body;
+    const { title, department, location, type, salary, description, responsibilities, requirements, skills } = req.body;
     
-    if (!title || !department || !location || !type || !salary || !description) {
-      return res.status(400).json({ success: false, message: 'Missing required job posting parameters.' });
-    }
+    // if (!title || !department || !location || !type || !salary || !description) {
+    //   return res.status(400).json({ success: false, message: 'Missing required job posting parameters.' });
+    // }
 
     const pool = await getDb();
     const id = `job-${crypto.randomUUID().slice(0, 8)}`;
@@ -89,11 +90,12 @@ app.post('/api/jobs', async (req, res) => {
     // Stringify arrays for storage
     const respStr = JSON.stringify(Array.isArray(responsibilities) ? responsibilities : []);
     const reqsStr = JSON.stringify(Array.isArray(requirements) ? requirements : []);
+    const skillsStr = JSON.stringify(Array.isArray(skills) ? skills : []);
 
     await pool.query(
-      `INSERT INTO jobs (id, title, department, location, type, salary, description, responsibilities, requirements)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [id, title, department, location, type, salary, description, respStr, reqsStr]
+      `INSERT INTO jobs (id, title, department, location, type, salary, description, responsibilities, requirements, skills)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [id, title, department, location, type, salary, description, respStr, reqsStr, skillsStr]
     );
 
     res.status(201).json({
@@ -108,7 +110,8 @@ app.post('/api/jobs', async (req, res) => {
         salary,
         description,
         responsibilities: Array.isArray(responsibilities) ? responsibilities : [],
-        requirements: Array.isArray(requirements) ? requirements : []
+        requirements: Array.isArray(requirements) ? requirements : [],
+        skills: Array.isArray(skills) ? skills : []
       }
     });
   } catch (error) {

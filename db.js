@@ -43,8 +43,9 @@ export async function getDb() {
         type VARCHAR(50) NOT NULL,
         salary VARCHAR(100) NOT NULL,
         description TEXT NOT NULL,
-        responsibilities TEXT NOT NULL, -- JSON string array
-        requirements TEXT NOT NULL,     -- JSON string array
+        responsibilities TEXT NOT NULL,   -- JSON string array
+        requirements TEXT NOT NULL,       -- JSON string array
+        skills TEXT NOT NULL DEFAULT '[]', -- JSON string array
         createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
@@ -68,6 +69,13 @@ export async function getDb() {
       await client.query('ALTER TABLE applications ADD CONSTRAINT unique_job_email UNIQUE (jobId, email)');
     } catch (err) {
       // Constraint might already exist
+    }
+
+    // Ensure skills column exists for existing jobs table
+    try {
+      await client.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS skills TEXT NOT NULL DEFAULT '[]'");
+    } catch (err) {
+      // Column might already exist
     }
 
     // Seed initial jobs if database is empty
@@ -97,7 +105,8 @@ export async function getDb() {
             '5+ years of production experience implementing decentralized ledger technologies or distributed systems.',
             'Deep fluency with Rust, Go, or specialized systems engineering languages.',
             'Experience with verifiable credentials and decentralized identity (DID) standards.'
-          ])
+          ]),
+          skills: JSON.stringify(['Zero-Knowledge Proofs', 'Cryptography', 'Rust', 'Go', 'Distributed Ledgers', 'WebAuthn'])
         },
         {
           id: 'job-2',
@@ -118,7 +127,8 @@ export async function getDb() {
             'Strong eye for aesthetics, premium typography, responsive grids, and clean design patterns.',
             'Expertise in local caching strategies, service workers, and state synchronization frameworks.',
             'A portfolio showcasing fluid, highly optimized, non-generic user interfaces.'
-          ])
+          ]),
+          skills: JSON.stringify(['React', 'Tailwind CSS', 'WebSockets', 'JavaScript', 'HTML/CSS', 'UI/UX'])
         },
         {
           id: 'job-3',
@@ -139,7 +149,8 @@ export async function getDb() {
             'Expertise with Figma, design system governance, and prototyping tools.',
             'A portfolio demonstrating mastery of typography, visual hierarchy, and interface design.',
             'Basic understanding of HTML/CSS/Tailwind configurations is a strong plus.'
-          ])
+          ]),
+          skills: JSON.stringify(['Figma', 'Product Design', 'Typography', 'SaaS', 'Prototyping', 'Design Systems'])
         },
         {
           id: 'job-4',
@@ -160,7 +171,8 @@ export async function getDb() {
             'Thorough expertise with OAuth 2.1, OIDC, SAML, and WebAuthn standards.',
             'Proven experience auditing cloud systems, Docker containers, and Kubernetes environments.',
             'Relevant security certifications (e.g., CISSP, OSCP) are highly valued.'
-          ])
+          ]),
+          skills: JSON.stringify(['OAuth 2.1', 'OIDC', 'WebAuthn', 'IAM', 'Docker', 'Kubernetes', 'Penetration Testing'])
         },
         {
           id: 'job-5',
@@ -181,15 +193,16 @@ export async function getDb() {
             'Excellent technical writing capabilities and communication skills.',
             'Strong coding skills in Javascript/React, Node.js, Python, or Go.',
             'Passion for developer communities, open-source projects, and digital education.'
-          ])
+          ]),
+          skills: JSON.stringify(['Developer Relations', 'Technical Writing', 'JavaScript', 'Node.js', 'Go', 'API Design'])
         }
       ];
 
       for (const job of initialJobs) {
         await client.query(
-          `INSERT INTO jobs (id, title, department, location, type, salary, description, responsibilities, requirements)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [job.id, job.title, job.department, job.location, job.type, job.salary, job.description, job.responsibilities, job.requirements]
+          `INSERT INTO jobs (id, title, department, location, type, salary, description, responsibilities, requirements, skills)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [job.id, job.title, job.department, job.location, job.type, job.salary, job.description, job.responsibilities, job.requirements, job.skills]
         );
       }
       console.log('Seeding completed successfully.');
