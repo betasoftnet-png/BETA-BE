@@ -10,13 +10,22 @@ let pool = null;
 export async function getDb() {
   if (pool) return pool;
 
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    throw new Error('DATABASE_URL is not defined in backend environmental configuration.');
+  const user = process.env.DB_USER;
+  const host = process.env.DB_HOST;
+  const database = process.env.DB_NAME;
+  const password = process.env.DB_PASSWORD;
+  const port = process.env.DB_PORT;
+
+  if (!user || !host || !database || !password) {
+    throw new Error('Database credentials/host parameters (DB_USER, DB_HOST, DB_NAME, DB_PASSWORD) are not fully defined in backend environmental configuration.');
   }
 
   pool = new Pool({
-    connectionString
+    user,
+    host,
+    database,
+    password,
+    port: port ? parseInt(port, 10) : 5432
   });
 
   // Test connection and initialize tables
