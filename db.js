@@ -56,6 +56,7 @@ export async function getDb() {
         jobId VARCHAR(50) NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
         fullName VARCHAR(150) NOT NULL,
         email VARCHAR(150) NOT NULL,
+        phone VARCHAR(50),
         resumeUrl TEXT NOT NULL,
         coverLetter TEXT,
         status VARCHAR(50) DEFAULT 'pending',
@@ -69,6 +70,13 @@ export async function getDb() {
       await client.query('ALTER TABLE applications ADD CONSTRAINT unique_job_email UNIQUE (jobId, email)');
     } catch (err) {
       // Constraint might already exist
+    }
+
+    // Ensure phone column exists for existing applications table
+    try {
+      await client.query("ALTER TABLE applications ADD COLUMN IF NOT EXISTS phone VARCHAR(50)");
+    } catch (err) {
+      // Column might already exist
     }
 
     // Ensure skills column exists for existing jobs table

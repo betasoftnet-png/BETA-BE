@@ -143,13 +143,13 @@ app.post('/api/jobs', async (req, res) => {
 // POST /api/jobs/apply - Submit an application with file upload and send email via Resend
 app.post('/api/jobs/apply', upload.single('resume'), async (req, res) => {
   try {
-    const { jobId, fullName, email, coverLetter } = req.body;
+    const { jobId, fullName, email, phone, coverLetter } = req.body;
 
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'Missing required resume file.' });
     }
 
-    if (!jobId || !fullName || !email) {
+    if (!jobId || !fullName || !email || !phone) {
       fs.unlinkSync(req.file.path);
       return res.status(400).json({ success: false, message: 'Missing required application parameters.' });
     }
@@ -177,9 +177,9 @@ app.post('/api/jobs/apply', upload.single('resume'), async (req, res) => {
     
     // Insert into database
     await pool.query(
-      `INSERT INTO applications (id, jobId, fullName, email, resumeUrl, coverLetter, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [id, jobId, fullName, email, resumeUrl, coverLetter || '', 'pending']
+      `INSERT INTO applications (id, jobId, fullName, email, phone, resumeUrl, coverLetter, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [id, jobId, fullName, email, phone, resumeUrl, coverLetter || '', 'pending']
     );
 
     // Email content
@@ -211,6 +211,10 @@ app.post('/api/jobs/apply', upload.single('resume'), async (req, res) => {
             <tr>
               <td style="padding: 4px 0; font-weight: bold;">Location:</td>
               <td style="padding: 4px 0;">${job.location} (${job.type})</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; font-weight: bold;">Phone Number:</td>
+              <td style="padding: 4px 0;">${phone}</td>
             </tr>
             <tr>
               <td style="padding: 4px 0; font-weight: bold;">Resume Link:</td>
@@ -264,7 +268,7 @@ app.post('/api/jobs/apply', upload.single('resume'), async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Application submitted successfully.',
-      data: { id, jobId, fullName, email, resumeUrl, coverLetter },
+      data: { id, jobId, fullName, email, phone, resumeUrl, coverLetter },
       emailStatus: emailSent ? 'sent' : 'failed',
       emailError: emailError
     });
@@ -284,6 +288,7 @@ app.get('/api/applications', async (req, res) => {
         a.id, 
         a.fullName, 
         a.email, 
+        a.phone,
         a.resumeUrl, 
         a.coverLetter, 
         a.status, 
