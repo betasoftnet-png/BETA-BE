@@ -18,6 +18,8 @@ const PORT = process.env.PORT || 5000;
 
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'https://beta-softnet.com',
+  'https://beta-softnet.com',
+  'https://www.beta-softnet.com',
   'http://localhost:5173',
   'http://localhost:3000',
   'http://localhost:5000',
