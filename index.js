@@ -235,36 +235,36 @@ app.post('/api/jobs/apply', upload.single('resume'), async (req, res) => {
       </div>
     `;
 
-    // Attempt to send email via Resend
+    // Attempt to send email via BNX Mail public endpoint
     let emailSent = false;
     let emailError = null;
 
-    if (resend) {
-      try {
-        const { data, error } = await resend.emails.send({
-          from: 'Beta Softnet Careers <admin@beta-softnet.com>',
-          to: [email],
+    try {
+      const mailApiUrl = process.env.MAIL_API_URL || 'https://api.bnxmail.com';
+      const response = await fetch(`${mailApiUrl}/api/mail/public/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Public-Mail-Token': process.env.PUBLIC_MAIL_TOKEN || 'secure-beta-to-bnx-secret-2026'
+        },
+        body: JSON.stringify({
+          to: email,
           subject: emailSubject,
-          html: emailHtml
-        });
-        
-        if (error) {
-          throw new Error(error.message || JSON.stringify(error));
-        }
-        
-        console.log(`Email successfully dispatched via Resend. Email ID: ${data?.id}`);
+          body: emailHtml,
+          isHtml: true
+        })
+      });
+      
+      const resData = await response.json();
+      if (response.ok && resData.success) {
         emailSent = true;
-      } catch (err) {
-        console.error('Failed to send email via Resend:', err);
-        emailError = err.message || err;
+        console.log(`Confirmation email sent successfully via BNX Mail API to ${email}`);
+      } else {
+        throw new Error(resData.message || 'API error response');
       }
-    } else {
-      console.log('--- SIMULATED EMAIL DELIVERED ---');
-      console.log(`To: ${email}`);
-      console.log(`Subject: ${emailSubject}`);
-      console.log(`HTML Payload:\n${emailHtml}`);
-      console.log('---------------------------------');
-      emailSent = true;
+    } catch (err) {
+      console.error('Failed to send confirmation email via BNX Mail API:', err);
+      emailError = err.message || err;
     }
 
     res.status(201).json({
