@@ -251,7 +251,8 @@ app.post('/api/jobs/apply', upload.single('resume'), async (req, res) => {
           to: email,
           subject: emailSubject,
           body: emailHtml,
-          isHtml: true
+          isHtml: true,
+          html: true
         })
       });
       
