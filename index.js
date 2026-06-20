@@ -230,7 +230,7 @@ app.post('/api/jobs/apply', upload.single('resume'), async (req, res) => {
         </p>
         
         <div style="border-top: 1px solid #e2e8f0; margin-top: 30px; padding-top: 15px; font-size: 11px; color: #94a3b8; text-align: center;">
-          © 2026 Beta Softnet Corporation. 100 Federated Plaza, San Francisco, CA.
+          © 2026 Beta Softnet Pvt Ltd. PH Road Manavalanagar, Thiruvallur.
         </div>
       </div>
     `;
@@ -252,7 +252,8 @@ app.post('/api/jobs/apply', upload.single('resume'), async (req, res) => {
           subject: emailSubject,
           body: emailHtml,
           isHtml: true,
-          html: true
+          html: true,
+          fromName: 'Beta Softnet Careers'
         })
       });
       
