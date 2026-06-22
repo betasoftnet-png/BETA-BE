@@ -64,7 +64,13 @@ const upload = multer({
 });
 
 // Serve uploads folder statically
-app.use('/uploads', express.static(uploadDir));
+app.use('/uploads', express.static(uploadDir, {
+  setHeaders: (res, filepath) => {
+    if (filepath.endsWith('.pdf')) {
+      res.setHeader('Content-Disposition', 'attachment; filename="' + path.basename(filepath) + '"');
+    }
+  }
+}));
 
 // Initialize Resend
 const resendApiKey = process.env.RESEND_API_KEY;
